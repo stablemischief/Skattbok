@@ -1,0 +1,4 @@
+ITERATION 1 NOTES:
+- Ralph-fresh ran on empty repo but produced no output (empty worktree)
+- Switching to archon-idea-to-pr for initial scaffold
+- Auth: Changed from PIN to Clerk (Google OAuth) — see PRD update below
