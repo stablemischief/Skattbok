@@ -2,6 +2,10 @@ import { getGoogleSheetsClient } from "./google-auth";
 import { GOOGLE_SHEETS_HEADERS } from "./defaults";
 import type { Expense } from "./types";
 
+function escapeDriveQuery(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
 function expenseToRow(expense: Expense): string[] {
   return [
     expense.id,
@@ -53,13 +57,15 @@ export async function getOrCreateSpreadsheet(
   const drive = google.drive({ version: "v3", auth: oauth2Client });
 
   const searchResult = await drive.files.list({
-    q: `name='${title}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`,
+    q: `name='${escapeDriveQuery(title)}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`,
     fields: "files(id,name)",
     spaces: "drive",
   });
 
   if (searchResult.data.files && searchResult.data.files.length > 0) {
-    return searchResult.data.files[0].id!;
+    const existingId = searchResult.data.files[0].id;
+    if (!existingId) throw new Error(`Google Drive: spreadsheet "${title}" found but has no ID`);
+    return existingId;
   }
 
   // Create new spreadsheet with headers
@@ -74,7 +80,8 @@ export async function getOrCreateSpreadsheet(
     },
   });
 
-  const spreadsheetId = createResult.data.spreadsheetId!;
+  const spreadsheetId = createResult.data.spreadsheetId;
+  if (!spreadsheetId) throw new Error(`Google Sheets: created spreadsheet "${title}" but got no ID`);
 
   // Add header row
   await sheets.spreadsheets.values.update({

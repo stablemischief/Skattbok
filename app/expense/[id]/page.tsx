@@ -37,6 +37,8 @@ export default function ExpenseDetailPage() {
           (e) => e.id === expenseId
         );
         setExpense(found ?? null);
+      } else {
+        showToast(result.error || "Failed to load expense", "error");
       }
     } catch {
       showToast("Failed to load expense", "error");

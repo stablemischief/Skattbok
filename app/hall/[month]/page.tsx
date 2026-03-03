@@ -39,6 +39,8 @@ export default function MonthPage() {
           e.date.startsWith(month)
         );
         setExpenses(filtered);
+      } else {
+        showToast(result.error || "Failed to load expenses", "error");
       }
     } catch {
       showToast("Failed to load expenses", "error");

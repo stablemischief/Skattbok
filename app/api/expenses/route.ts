@@ -35,6 +35,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, data: expenses });
   } catch (error) {
     console.error("Get expenses error:", error);
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("Not authenticated") || message.includes("No Google OAuth token")) {
+      return NextResponse.json({ error: message }, { status: 401 });
+    }
     return NextResponse.json(
       { error: "Failed to fetch expenses" },
       { status: 500 }
@@ -55,7 +59,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const expenseInput = JSON.parse(expenseDataRaw);
+    let expenseInput;
+    try {
+      expenseInput = JSON.parse(expenseDataRaw);
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid expense data format" },
+        { status: 400 }
+      );
+    }
     const token = await getGoogleAccessToken();
 
     const now = new Date();
@@ -121,12 +133,22 @@ export async function POST(request: NextRequest) {
       createdAt: now.toISOString(),
     };
 
-    ExpenseSchema.parse(expense);
+    const parseResult = ExpenseSchema.safeParse(expense);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: "Invalid expense data", details: parseResult.error.flatten() },
+        { status: 422 }
+      );
+    }
     await appendExpenseRow(spreadsheetId, expense, token);
 
     return NextResponse.json({ success: true, data: expense });
   } catch (error) {
     console.error("Create expense error:", error);
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("Not authenticated") || message.includes("No Google OAuth token")) {
+      return NextResponse.json({ error: message }, { status: 401 });
+    }
     return NextResponse.json(
       { error: "Failed to save expense" },
       { status: 500 }

@@ -2,6 +2,10 @@ import { Readable } from "stream";
 import { getGoogleDriveClient } from "./google-auth";
 import { GOOGLE_DRIVE_ROOT_FOLDER } from "./defaults";
 
+function escapeDriveQuery(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
 async function findFolder(
   drive: ReturnType<typeof getGoogleDriveClient>,
   name: string,
@@ -11,7 +15,7 @@ async function findFolder(
     ? `and '${parentId}' in parents`
     : "and 'root' in parents";
   const result = await drive.files.list({
-    q: `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false ${parentQuery}`,
+    q: `name='${escapeDriveQuery(name)}' and mimeType='application/vnd.google-apps.folder' and trashed=false ${parentQuery}`,
     fields: "files(id,name)",
     spaces: "drive",
   });
@@ -31,7 +35,9 @@ async function createFolder(
     },
     fields: "id",
   });
-  return result.data.id!;
+  const id = result.data.id;
+  if (!id) throw new Error(`Google Drive: folder creation returned no ID for "${name}"`);
+  return id;
 }
 
 export async function getOrCreateFolderPath(
@@ -73,26 +79,12 @@ export async function uploadReceiptImage(
     fields: "id,webViewLink",
   });
 
-  const fileId = result.data.id!;
-
-  // Make publicly viewable
-  await drive.permissions.create({
-    fileId,
-    requestBody: {
-      role: "reader",
-      type: "anyone",
-    },
-  });
-
-  // Fetch webViewLink
-  const fileInfo = await drive.files.get({
-    fileId,
-    fields: "webViewLink",
-  });
+  const fileId = result.data.id;
+  if (!fileId) throw new Error("Google Drive: file upload returned no ID");
 
   return {
     fileId,
-    webViewLink: fileInfo.data.webViewLink!,
+    webViewLink: result.data.webViewLink ?? "",
   };
 }
 

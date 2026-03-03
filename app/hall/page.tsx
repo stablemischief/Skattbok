@@ -41,6 +41,8 @@ export default function HallPage() {
       const result = await res.json();
       if (result.success) {
         setExpenses(result.data);
+      } else {
+        showToast(result.error || "Failed to load expenses", "error");
       }
     } catch {
       showToast("Failed to load expenses", "error");

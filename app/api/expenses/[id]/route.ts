@@ -5,7 +5,6 @@ import {
   getExpenses,
   updateExpenseRow,
   deleteExpenseRow,
-  findExpenseRowIndex,
 } from "@/lib/google-sheets";
 import { deleteFile } from "@/lib/google-drive";
 
@@ -31,9 +30,11 @@ export async function PUT(
     }
 
     const spreadsheetId = await getOrCreateSpreadsheet(entity, year, token);
-    const rowIndex = await findExpenseRowIndex(spreadsheetId, id, token);
-
     const expenses = await getExpenses(spreadsheetId, token);
+    const rowIndex = expenses.findIndex((e) => e.id === id);
+    if (rowIndex === -1) {
+      return NextResponse.json({ error: `Expense ${id} not found` }, { status: 404 });
+    }
     const existingExpense = expenses[rowIndex];
 
     const updatedExpense = {
@@ -48,9 +49,14 @@ export async function PUT(
     return NextResponse.json({ success: true, data: updatedExpense });
   } catch (error) {
     console.error("Update expense error:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to update expense";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("Not authenticated") || message.includes("No Google OAuth token")) {
+      return NextResponse.json({ error: message }, { status: 401 });
+    }
+    return NextResponse.json(
+      { error: message || "Failed to update expense" },
+      { status: 500 }
+    );
   }
 }
 
@@ -75,10 +81,11 @@ export async function DELETE(
 
     const token = await getGoogleAccessToken();
     const spreadsheetId = await getOrCreateSpreadsheet(entity, year, token);
-    const rowIndex = await findExpenseRowIndex(spreadsheetId, id, token);
-
-    // Get expense to find image file ID for deletion
     const expenses = await getExpenses(spreadsheetId, token);
+    const rowIndex = expenses.findIndex((e) => e.id === id);
+    if (rowIndex === -1) {
+      return NextResponse.json({ error: `Expense ${id} not found` }, { status: 404 });
+    }
     const expense = expenses[rowIndex];
 
     // Delete image from Drive if it exists
@@ -89,9 +96,9 @@ export async function DELETE(
         if (match) {
           await deleteFile(match[1], token);
         }
-      } catch {
+      } catch (imgErr) {
         // Image deletion is best-effort
-        console.warn("Failed to delete image from Drive");
+        console.warn("Failed to delete image from Drive:", imgErr);
       }
     }
 
@@ -100,8 +107,13 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Delete expense error:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to delete expense";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("Not authenticated") || message.includes("No Google OAuth token")) {
+      return NextResponse.json({ error: message }, { status: 401 });
+    }
+    return NextResponse.json(
+      { error: message || "Failed to delete expense" },
+      { status: 500 }
+    );
   }
 }
