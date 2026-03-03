@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-norse-bg: #0f0f0f;
+  --color-norse-card: #1a1a1a;
+  --color-norse-gold: #d4a017;
+  --color-norse-text: #f5e6c8;
+  --color-norse-text-muted: #a89274;
+  --color-norse-border: #2a2a2a;
+  --color-norse-danger: #c0392b;
+  --color-norse-success: #27ae60;
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+}
