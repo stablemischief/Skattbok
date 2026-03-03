@@ -1,0 +1,22 @@
+{
+  "project": "skattbok-v1",
+  "stories": [
+    { "id": 1, "title": "Project scaffold", "passes": false },
+    { "id": 2, "title": "PIN auth", "passes": false },
+    { "id": 3, "title": "The Forge — Clans (entity management)", "passes": false },
+    { "id": 4, "title": "The Forge — Runes (category management)", "passes": false },
+    { "id": 5, "title": "The Forge — War Chest (payment methods)", "passes": false },
+    { "id": 6, "title": "Google OAuth connection", "passes": false },
+    { "id": 7, "title": "Google Sheets integration", "passes": false },
+    { "id": 8, "title": "Google Drive integration", "passes": false },
+    { "id": 9, "title": "Receipt capture screen", "passes": false },
+    { "id": 10, "title": "Claude vision extraction API route", "passes": false },
+    { "id": 11, "title": "Receipt review and save", "passes": false },
+    { "id": 12, "title": "Manual entry fallback", "passes": false },
+    { "id": 13, "title": "The Great Hall — By Month dashboard", "passes": false },
+    { "id": 14, "title": "The Great Hall — By Category dashboard", "passes": false },
+    { "id": 15, "title": "Expense detail and edit", "passes": false },
+    { "id": 16, "title": "Send the Ravens — Export", "passes": false },
+    { "id": 17, "title": "Draft expense recovery", "passes": false }
+  ]
+}
