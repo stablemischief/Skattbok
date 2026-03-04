@@ -1,29 +1,34 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { ReceiptExtractionSchema } from "./types";
 import type { ReceiptExtraction } from "./types";
 
-const anthropic = new Anthropic();
-
 const SYSTEM_PROMPT = `You are a receipt parsing assistant. Analyze the provided receipt image and extract structured expense data.
 
-Instructions:
-- Extract the vendor/merchant name exactly as printed
-- Parse the date in YYYY-MM-DD format. If ambiguous (e.g., 03/04), prefer MM/DD (US format)
-- Extract all line items with descriptions and amounts
-- Identify subtotal, tax, and total amounts
-- Currency defaults to USD unless otherwise indicated
-- If a payment method is visible (e.g., "VISA ****1234"), extract it
-- Set confidence to "high" if all key fields are clearly readable, "medium" if some fields are unclear, "low" if the image is poor quality
-- Include any relevant notes about the receipt (e.g., "tip included", "partial payment")
-- If you cannot read a field, omit it or use a reasonable default`;
+Return ONLY a valid JSON object with these fields:
+- vendor (string): merchant name exactly as printed
+- date (string): in YYYY-MM-DD format. If ambiguous (e.g., 03/04), prefer MM/DD (US format)
+- currency (string): defaults to "USD" unless otherwise indicated
+- subtotal (number, optional): subtotal amount
+- tax (number, optional): tax amount
+- total (number): total amount
+- line_items (array): each with "description" (string), "amount" (number), and optionally "quantity" (number)
+- description (string): brief description of the expense
+- payment_method (string, optional): e.g., "VISA ****1234" if visible
+- confidence ("high" | "medium" | "low"): "high" if all key fields are clearly readable, "medium" if some fields are unclear, "low" if the image is poor quality
+- notes (string, optional): any relevant notes (e.g., "tip included", "partial payment")
+
+If you cannot read a field, omit it or use a reasonable default. Return ONLY the JSON object, no markdown fences or extra text.`;
 
 export async function extractReceiptData(
   imageBase64: string,
   mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp"
 ): Promise<ReceiptExtraction> {
-  const response = await anthropic.messages.parse({
-    model: "claude-sonnet-4-6",
+  const anthropic = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+  });
+
+  const response = await anthropic.messages.create({
+    model: "claude-sonnet-4-5-20250514",
     max_tokens: 1024,
     system: SYSTEM_PROMPT,
     messages: [
@@ -40,19 +45,18 @@ export async function extractReceiptData(
           },
           {
             type: "text",
-            text: "Extract the expense data from this receipt.",
+            text: "Extract the expense data from this receipt. Return only a JSON object.",
           },
         ],
       },
     ],
-    output_config: {
-      format: zodOutputFormat(ReceiptExtractionSchema),
-    },
   });
 
-  if (!response.parsed_output) {
-    throw new Error("No parsed output from Claude");
+  const textBlock = response.content.find((block) => block.type === "text");
+  if (!textBlock || textBlock.type !== "text") {
+    throw new Error("No text response from Claude");
   }
 
-  return response.parsed_output;
+  const raw = JSON.parse(textBlock.text);
+  return ReceiptExtractionSchema.parse(raw);
 }
