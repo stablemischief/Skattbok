@@ -109,8 +109,14 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Export error:", error);
     const message = error instanceof Error ? error.message : "";
-    if (message.includes("Not authenticated") || message.includes("No Google OAuth token")) {
-      return NextResponse.json({ error: message }, { status: 401 });
+    if (
+      message.includes("Not authenticated") ||
+      message.includes("Google account not connected")
+    ) {
+      return NextResponse.json(
+        { error: message, code: "GOOGLE_NOT_CONNECTED" },
+        { status: 401 }
+      );
     }
     return NextResponse.json(
       { error: "Failed to export expenses" },

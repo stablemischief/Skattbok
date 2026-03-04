@@ -41,6 +41,11 @@ export default function HallPage() {
       const result = await res.json();
       if (result.success) {
         setExpenses(result.data);
+      } else if (res.status === 401 || result.code === "GOOGLE_NOT_CONNECTED") {
+        showToast(
+          result.error || "Google account not connected. Connect Google in Settings.",
+          "error"
+        );
       } else {
         showToast(result.error || "Failed to load expenses", "error");
       }
@@ -103,6 +108,11 @@ export default function HallPage() {
       if (result.success) {
         showToast("Cast into the fire!", "success");
         fetchExpenses();
+      } else if (res.status === 401 || result.code === "GOOGLE_NOT_CONNECTED") {
+        showToast(
+          result.error || "Google account not connected. Connect Google in Settings.",
+          "error"
+        );
       } else {
         showToast(result.error || "Delete failed", "error");
       }

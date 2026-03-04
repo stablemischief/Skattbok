@@ -51,16 +51,16 @@ export default function CapturePage() {
         );
         router.push("/capture/review");
       } else if (result.fallback) {
-        showToast(
-          "The ravens couldn't read this scroll. Enter the details by hand.",
-          "warning"
-        );
+        showToast(result.error || "Could not read receipt. Enter details by hand.", "warning");
         setManualEntry(true);
       } else {
         showToast(result.error || "Extraction failed", "error");
+        if (res.status !== 429) {
+          setManualEntry(true);
+        }
       }
     } catch {
-      showToast("Failed to process receipt", "error");
+      showToast("Network error — check your connection and try again.", "error");
       setManualEntry(true);
     } finally {
       setLoading(false);
