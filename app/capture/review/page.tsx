@@ -77,14 +77,20 @@ export default function ReviewPage() {
         sessionStorage.removeItem("skattbok-review");
         showToast("Expense etched in stone!", "success");
         router.push("/hall");
+      } else if (res.status === 401 || result.code === "GOOGLE_NOT_CONNECTED") {
+        showToast(
+          result.error || "Google account not connected. Connect Google in Settings to save expenses.",
+          "error"
+        );
       } else {
         throw new Error(result.error || "Save failed");
       }
     } catch (error) {
       // Save as draft on failure
       saveDraft(data, reviewData?.imageBase64 ?? undefined);
+      const errMsg = error instanceof Error ? error.message : "";
       showToast(
-        "Failed to save. Draft preserved — will retry later.",
+        errMsg || "Failed to save. Draft preserved — will retry later.",
         "error"
       );
       console.error("Save error:", error);

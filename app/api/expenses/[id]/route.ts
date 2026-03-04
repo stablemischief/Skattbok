@@ -50,8 +50,9 @@ export async function PUT(
   } catch (error) {
     console.error("Update expense error:", error);
     const message = error instanceof Error ? error.message : "";
-    if (message.includes("Not authenticated") || message.includes("No Google OAuth token")) {
-      return NextResponse.json({ error: message }, { status: 401 });
+    if (message.includes("Not authenticated") ||
+      message.includes("Google account not connected")) {
+      return NextResponse.json({ error: message, code: "GOOGLE_NOT_CONNECTED" }, { status: 401 });
     }
     return NextResponse.json(
       { error: message || "Failed to update expense" },
@@ -108,8 +109,9 @@ export async function DELETE(
   } catch (error) {
     console.error("Delete expense error:", error);
     const message = error instanceof Error ? error.message : "";
-    if (message.includes("Not authenticated") || message.includes("No Google OAuth token")) {
-      return NextResponse.json({ error: message }, { status: 401 });
+    if (message.includes("Not authenticated") ||
+      message.includes("Google account not connected")) {
+      return NextResponse.json({ error: message, code: "GOOGLE_NOT_CONNECTED" }, { status: 401 });
     }
     return NextResponse.json(
       { error: message || "Failed to delete expense" },

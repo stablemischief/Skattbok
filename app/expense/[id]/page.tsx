@@ -37,6 +37,11 @@ export default function ExpenseDetailPage() {
           (e) => e.id === expenseId
         );
         setExpense(found ?? null);
+      } else if (res.status === 401 || result.code === "GOOGLE_NOT_CONNECTED") {
+        showToast(
+          result.error || "Google account not connected. Connect Google in Settings.",
+          "error"
+        );
       } else {
         showToast(result.error || "Failed to load expense", "error");
       }
@@ -63,6 +68,11 @@ export default function ExpenseDetailPage() {
       if (result.success) {
         showToast("Expense updated!", "success");
         router.back();
+      } else if (res.status === 401 || result.code === "GOOGLE_NOT_CONNECTED") {
+        showToast(
+          result.error || "Google account not connected. Connect Google in Settings.",
+          "error"
+        );
       } else {
         showToast(result.error || "Update failed", "error");
       }
@@ -83,6 +93,11 @@ export default function ExpenseDetailPage() {
       if (result.success) {
         showToast("Cast into the fire!", "success");
         router.back();
+      } else if (res.status === 401 || result.code === "GOOGLE_NOT_CONNECTED") {
+        showToast(
+          result.error || "Google account not connected. Connect Google in Settings.",
+          "error"
+        );
       } else {
         showToast(result.error || "Delete failed", "error");
       }
