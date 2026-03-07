@@ -94,8 +94,8 @@ export async function POST(request: Request) {
     const arrayBuffer = await file.arrayBuffer();
     let imageBuffer = Buffer.from(arrayBuffer);
 
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.error("Receipt extraction: ANTHROPIC_API_KEY is not set");
+    if (!process.env.GEMINI_API_KEY) {
+      console.error("Receipt extraction: GEMINI_API_KEY is not set");
       return NextResponse.json(
         { error: "AI service not configured. Please contact support." },
         { status: 503 }

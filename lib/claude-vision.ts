@@ -2,28 +2,26 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ReceiptExtractionSchema } from "./types";
 import type { ReceiptExtraction } from "./types";
 
-const PROMPT = `You are a receipt parsing assistant. Analyze this receipt image and extract the expense data.
+const PROMPT = `You are a receipt parsing assistant. Look carefully at this receipt image and extract ALL visible expense data.
 
-Return ONLY a valid JSON object with these exact fields (no markdown, no code fences):
-{
-  "vendor": "merchant name as printed",
-  "date": "YYYY-MM-DD",
-  "currency": "USD",
-  "subtotal": 0.00,
-  "tax": 0.00,
-  "total": 0.00,
-  "line_items": [{"description": "item name", "amount": 0.00}],
-  "description": "brief one-line description",
-  "payment_method": "e.g. Amex ****1001 or empty string",
-  "confidence": "high",
-  "notes": ""
-}
+Return a single JSON object with these fields:
+- vendor: the merchant/restaurant/store name exactly as printed
+- date: the transaction date in YYYY-MM-DD format
+- currency: currency code, default "USD"
+- subtotal: the subtotal dollar amount as a number (e.g. 7.70)
+- tax: the tax dollar amount as a number (e.g. 0.75)
+- total: the grand total dollar amount as a number (e.g. 8.45)
+- line_items: array of objects with "description" (string) and "amount" (number) for each item
+- description: a brief one-line summary of what was purchased
+- payment_method: payment method if visible (e.g. "Amex ****1001"), or empty string
+- confidence: "high" if all key fields clearly readable, "medium" if some unclear, "low" if hard to read
+- notes: any other relevant info such as server name, check number, tip amount, etc.
 
-Rules:
-- total, subtotal, tax must be numbers (not strings)
-- date must be YYYY-MM-DD
-- confidence must be "high", "medium", or "low"
-- Return ONLY the JSON object, nothing else`;
+CRITICAL:
+- Extract the ACTUAL dollar amounts visible on the receipt - never use 0 as a placeholder
+- If you see "$8.45" as the total, return the number 8.45
+- All amounts (subtotal, tax, total) must be real numbers extracted from the receipt
+- Return ONLY the JSON object, no markdown fences, no explanation text`;
 
 export async function extractReceiptData(
   imageBase64: string,
@@ -46,18 +44,18 @@ export async function extractReceiptData(
   ]);
 
   let text = result.response.text().trim();
-  console.log("Gemini raw response:", text.substring(0, 200));
+  console.log("Gemini raw response:", text.substring(0, 500));
 
   // Strip markdown fences if present
-  if (text.startsWith("```")) {
-    text = text.replace(/^```[a-z]*\n?/, "").replace(/\n?```$/, "").trim();
+  if (text.startsWith("\`\`\`")) {
+    text = text.replace(/^\`\`\`[a-z]*\n?/, "").replace(/\n?\`\`\`$/, "").trim();
   }
 
   let raw: unknown;
   try {
     raw = JSON.parse(text);
   } catch {
-    throw new Error(`Gemini returned invalid JSON: ${text.substring(0, 100)}`);
+    throw new Error("Gemini returned invalid JSON: " + text.substring(0, 200));
   }
 
   // Coerce string numbers to actual numbers
