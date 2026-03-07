@@ -7,7 +7,7 @@ export async function GET() {
     if (!key) return NextResponse.json({ error: "No API key set" }, { status: 500 });
     const anthropic = new Anthropic({ apiKey: key });
     const response = await anthropic.messages.create({
-      model: "claude-3-5-haiku-20241022",
+      model: "claude-haiku-4-5-20250514",
       max_tokens: 10,
       messages: [{ role: "user", content: "Say: ok" }],
     });
