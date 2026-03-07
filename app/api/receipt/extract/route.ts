@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { extractReceiptData } from "@/lib/claude-vision";
 
+// Extend Vercel serverless function timeout to 60s
+export const maxDuration = 60;
+
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = [
   "image/jpeg",
