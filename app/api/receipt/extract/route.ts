@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { extractReceiptData } from "@/lib/claude-vision";
+import sharp from "sharp";
 
 // Extend Vercel serverless function timeout to 60s
 export const maxDuration = 60;
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_DIMENSION = 1200; // Resize iPhone Pro Max images before sending to Claude
 const ALLOWED_TYPES = [
   "image/jpeg",
   "image/png",
@@ -13,6 +15,36 @@ const ALLOWED_TYPES = [
 ] as const;
 
 type AllowedMediaType = (typeof ALLOWED_TYPES)[number];
+
+async function resizeImageIfNeeded(
+  buffer: Buffer,
+  mimeType: string
+): Promise<{ buffer: Buffer; mimeType: AllowedMediaType }> {
+  try {
+    const image = sharp(buffer);
+    const metadata = await image.metadata();
+    const { width = 0, height = 0 } = metadata;
+
+    if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+      const resized = await image
+        .resize(MAX_DIMENSION, MAX_DIMENSION, {
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .jpeg({ quality: 85 })
+        .toBuffer();
+      console.log(
+        `Receipt resized: ${width}x${height} → ≤${MAX_DIMENSION}px, ${buffer.length}B → ${resized.length}B`
+      );
+      return { buffer: resized, mimeType: "image/jpeg" };
+    }
+
+    return { buffer, mimeType: mimeType as AllowedMediaType };
+  } catch (err) {
+    console.warn("Image resize failed, using original:", err);
+    return { buffer, mimeType: mimeType as AllowedMediaType };
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -60,7 +92,7 @@ export async function POST(request: Request) {
     );
 
     const arrayBuffer = await file.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString("base64");
+    let imageBuffer = Buffer.from(arrayBuffer);
 
     if (!process.env.ANTHROPIC_API_KEY) {
       console.error("Receipt extraction: ANTHROPIC_API_KEY is not set");
@@ -70,9 +102,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // Resize large images (e.g. iPhone Pro Max) before sending to Claude
+    const { buffer: resizedBuffer, mimeType: finalMimeType } =
+      await resizeImageIfNeeded(imageBuffer, fileType);
+
+    const base64 = resizedBuffer.toString("base64");
+
     const extraction = await extractReceiptData(
       base64,
-      fileType as AllowedMediaType
+      finalMimeType
     );
 
     return NextResponse.json({ success: true, data: extraction });
@@ -93,17 +131,24 @@ export async function POST(request: Request) {
       );
     }
 
-    if (errMsg.includes("invalid_api_key") || errMsg.includes("authentication_error")) {
+    if (
+      errMsg.includes("invalid_api_key") ||
+      errMsg.includes("authentication_error")
+    ) {
       return NextResponse.json(
         { error: "AI service authentication failed. Please contact support." },
         { status: 503 }
       );
     }
 
-    if (errMsg.includes("Could not process image") || errMsg.includes("invalid_request_error")) {
+    if (
+      errMsg.includes("Could not process image") ||
+      errMsg.includes("invalid_request_error")
+    ) {
       return NextResponse.json(
         {
-          error: "Could not process this image. Try a clearer photo or a different angle.",
+          error:
+            "Could not process this image. Try a clearer photo or a different angle.",
           fallback: true,
         },
         { status: 422 }
@@ -112,7 +157,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       {
-        error: "The ravens couldn't read this scroll. Enter the details by hand.",
+        error:
+          "The ravens couldn't read this scroll. Enter the details by hand.",
         fallback: true,
       },
       { status: 422 }
