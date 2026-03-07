@@ -124,6 +124,13 @@ export async function POST(request: Request) {
       type: error instanceof Error ? error.constructor.name : typeof error,
     });
 
+    if (errMsg.includes("GEMINI_API_KEY")) {
+      return NextResponse.json(
+        { error: "Gemini API key not configured." },
+        { status: 503 }
+      );
+    }
+
     if (errMsg.includes("rate_limit_error")) {
       return NextResponse.json(
         { error: "Rate limited. Please try again in a moment." },
