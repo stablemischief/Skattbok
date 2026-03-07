@@ -27,7 +27,7 @@ export async function GET() {
   try {
     const { GoogleGenerativeAI } = await import("@google/generative-ai");
     const genAI = new GoogleGenerativeAI(geminiKey!);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-001" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const r = await model.generateContent("Say: ok");
     result.gemini_test = r.response.text().trim().substring(0, 50);
   } catch (e) {
