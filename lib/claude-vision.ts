@@ -1,5 +1,4 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { ReceiptExtractionSchema } from "./types";
 import type { ReceiptExtraction } from "./types";
 
 const PROMPT = `You are a receipt parsing assistant. Look carefully at this receipt image and extract ALL visible expense data.
@@ -7,21 +6,18 @@ const PROMPT = `You are a receipt parsing assistant. Look carefully at this rece
 Return a single JSON object with these fields:
 - vendor: the merchant/restaurant/store name exactly as printed
 - date: the transaction date in YYYY-MM-DD format
-- currency: currency code, default "USD"
-- subtotal: the subtotal dollar amount as a number (e.g. 7.70)
-- tax: the tax dollar amount as a number (e.g. 0.75)
-- total: the grand total dollar amount as a number (e.g. 8.45)
-- line_items: array of objects with "description" (string) and "amount" (number) for each item
-- description: a brief one-line summary of what was purchased
-- payment_method: payment method if visible (e.g. "Amex ****1001"), or empty string
-- confidence: "high" if all key fields clearly readable, "medium" if some unclear, "low" if hard to read
-- notes: any other relevant info such as server name, check number, tip amount, etc.
+- currency: "USD"
+- subtotal: subtotal dollar amount as a number (e.g. 7.70)
+- tax: tax dollar amount as a number (e.g. 0.75)
+- total: grand total dollar amount as a number (e.g. 8.45)
+- line_items: array of objects with "description" (string) and "amount" (number)
+- description: brief one-line summary of what was purchased
+- payment_method: payment method if visible (e.g. "Amex ****1001"), or ""
+- confidence: "high", "medium", or "low"
+- notes: other info like server name, check number, tip, etc.
 
-CRITICAL:
-- Extract the ACTUAL dollar amounts visible on the receipt - never use 0 as a placeholder
-- If you see "$8.45" as the total, return the number 8.45
-- All amounts (subtotal, tax, total) must be real numbers extracted from the receipt
-- Return ONLY the JSON object, no markdown fences, no explanation text`;
+CRITICAL: Extract ACTUAL dollar amounts from the receipt. Never use 0 as a placeholder.
+Return ONLY the JSON object, no markdown, no explanation.`;
 
 export async function extractReceiptData(
   imageBase64: string,
@@ -34,41 +30,54 @@ export async function extractReceiptData(
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const result = await model.generateContent([
-    {
-      inlineData: {
-        mimeType: mediaType,
-        data: imageBase64,
-      },
-    },
+    { inlineData: { mimeType: mediaType, data: imageBase64 } },
     PROMPT,
   ]);
 
   let text = result.response.text().trim();
   console.log("Gemini raw response:", text.substring(0, 500));
 
-  // Strip markdown fences if present
-  if (text.startsWith("\`\`\`")) {
-    text = text.replace(/^\`\`\`[a-z]*\n?/, "").replace(/\n?\`\`\`$/, "").trim();
-  }
+  // Strip markdown fences
+  const fenceMatch = text.match(/```(?:json)?\n?([\s\S]*?)\n?```/);
+  if (fenceMatch) text = fenceMatch[1].trim();
+  else if (text.startsWith("{")) { /* already bare JSON */ }
 
-  let raw: unknown;
+  let raw: Record<string, unknown>;
   try {
     raw = JSON.parse(text);
   } catch {
     throw new Error("Gemini returned invalid JSON: " + text.substring(0, 200));
   }
 
-  // Coerce string numbers to actual numbers
-  if (raw && typeof raw === "object") {
-    const r = raw as Record<string, unknown>;
-    if (typeof r.total === "string") r.total = parseFloat(r.total) || 0;
-    if (typeof r.subtotal === "string") r.subtotal = parseFloat(r.subtotal) || 0;
-    if (typeof r.tax === "string") r.tax = parseFloat(r.tax) || 0;
-    if (!r.confidence) r.confidence = "medium";
-    if (!r.description) r.description = String(r.vendor || "");
-    if (!r.currency) r.currency = "USD";
-    if (!Array.isArray(r.line_items)) r.line_items = [];
-  }
+  const toNum = (v: unknown): number => {
+    if (typeof v === "number") return v;
+    if (typeof v === "string") return parseFloat(v.replace(/[^0-9.]/g, "")) || 0;
+    return 0;
+  };
 
-  return ReceiptExtractionSchema.parse(raw);
+  const lineItems = Array.isArray(raw.line_items)
+    ? (raw.line_items as Array<Record<string, unknown>>).map((item) => ({
+        description: String(item.description || ""),
+        amount: toNum(item.amount),
+        quantity: item.quantity ? toNum(item.quantity) : undefined,
+      }))
+    : [];
+
+  const confidence = ["high", "medium", "low"].includes(String(raw.confidence))
+    ? (raw.confidence as "high" | "medium" | "low")
+    : "medium";
+
+  return {
+    vendor: String(raw.vendor || ""),
+    date: String(raw.date || new Date().toISOString().split("T")[0]),
+    currency: String(raw.currency || "USD"),
+    subtotal: toNum(raw.subtotal),
+    tax: toNum(raw.tax),
+    total: toNum(raw.total),
+    line_items: lineItems,
+    description: String(raw.description || raw.vendor || ""),
+    payment_method: raw.payment_method ? String(raw.payment_method) : undefined,
+    confidence,
+    notes: raw.notes ? String(raw.notes) : undefined,
+  };
 }
