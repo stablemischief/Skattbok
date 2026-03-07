@@ -8,6 +8,10 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
+  // Required for sharp to work correctly on Vercel
+  experimental: {
+    serverComponentsExternalPackages: ["sharp"],
+  },
   async headers() {
     return [
       {
