@@ -21,8 +21,9 @@ Return ONLY the JSON object, no markdown, no explanation.`;
 
 export async function extractReceiptData(
   imageBase64: string,
-  mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp"
-): Promise<ReceiptExtraction> {
+  mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp",
+  debug = false
+): Promise<ReceiptExtraction & { _raw?: string }> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
 
@@ -35,18 +36,17 @@ export async function extractReceiptData(
   ]);
 
   let text = result.response.text().trim();
-  console.log("Gemini raw response:", text.substring(0, 500));
+  console.log("Gemini raw response (500 chars):", text.substring(0, 500));
 
   // Strip markdown fences
   const fenceMatch = text.match(/```(?:json)?\n?([\s\S]*?)\n?```/);
   if (fenceMatch) text = fenceMatch[1].trim();
-  else if (text.startsWith("{")) { /* already bare JSON */ }
 
   let raw: Record<string, unknown>;
   try {
     raw = JSON.parse(text);
   } catch {
-    throw new Error("Gemini returned invalid JSON: " + text.substring(0, 200));
+    throw new Error("Gemini returned invalid JSON: " + text.substring(0, 300));
   }
 
   const toNum = (v: unknown): number => {
@@ -79,5 +79,6 @@ export async function extractReceiptData(
     payment_method: raw.payment_method ? String(raw.payment_method) : undefined,
     confidence,
     notes: raw.notes ? String(raw.notes) : undefined,
+    ...(debug ? { _raw: text } : {}),
   };
 }

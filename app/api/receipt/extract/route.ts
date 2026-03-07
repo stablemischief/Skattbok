@@ -108,10 +108,18 @@ export async function POST(request: Request) {
 
     const base64 = resizedBuffer.toString("base64");
 
+    const url = new URL(request.url);
+    const debug = url.searchParams.get("debug") === "1";
+
     const extraction = await extractReceiptData(
       base64,
-      finalMimeType
+      finalMimeType,
+      debug
     );
+
+    if (debug && (extraction as { _raw?: string })._raw) {
+      return NextResponse.json({ success: true, raw: (extraction as { _raw?: string })._raw, data: extraction });
+    }
 
     return NextResponse.json({ success: true, data: extraction });
   } catch (error) {
