@@ -4,20 +4,26 @@ import type { ReceiptExtraction } from "./types";
 
 const SYSTEM_PROMPT = `You are a receipt parsing assistant. Analyze the provided receipt image and extract structured expense data.
 
-Return ONLY a valid JSON object with these fields:
-- vendor (string): merchant name exactly as printed
-- date (string): in YYYY-MM-DD format. If ambiguous (e.g., 03/04), prefer MM/DD (US format)
-- currency (string): defaults to "USD" unless otherwise indicated
-- subtotal (number, optional): subtotal amount
-- tax (number, optional): tax amount
-- total (number): total amount
-- line_items (array): each with "description" (string), "amount" (number), and optionally "quantity" (number)
-- description (string): brief description of the expense
-- payment_method (string, optional): e.g., "VISA ****1234" if visible
-- confidence ("high" | "medium" | "low"): "high" if all key fields are clearly readable, "medium" if some fields are unclear, "low" if the image is poor quality
-- notes (string, optional): any relevant notes (e.g., "tip included", "partial payment")
+Return ONLY a valid JSON object with these exact fields:
+{
+  "vendor": "merchant name as printed",
+  "date": "YYYY-MM-DD",
+  "currency": "USD",
+  "subtotal": 0.00,
+  "tax": 0.00,
+  "total": 0.00,
+  "line_items": [{"description": "item", "amount": 0.00}],
+  "description": "brief description",
+  "payment_method": "VISA ****1234 or empty string",
+  "confidence": "high",
+  "notes": ""
+}
 
-If you cannot read a field, omit it or use a reasonable default. Return ONLY the JSON object, no markdown fences or extra text.`;
+Rules:
+- total must be a number (e.g. 8.45, not "8.45")
+- date must be YYYY-MM-DD format
+- confidence must be exactly "high", "medium", or "low"
+- Return ONLY the JSON object, no markdown, no code fences, no extra text`;
 
 export async function extractReceiptData(
   imageBase64: string,
@@ -45,7 +51,7 @@ export async function extractReceiptData(
           },
           {
             type: "text",
-            text: "Extract the expense data from this receipt. Return only a JSON object.",
+            text: "Extract the expense data from this receipt. Return only valid JSON.",
           },
         ],
       },
@@ -57,6 +63,32 @@ export async function extractReceiptData(
     throw new Error("No text response from Claude");
   }
 
-  const raw = JSON.parse(textBlock.text);
+  // Strip markdown fences if Claude added them anyway
+  let text = textBlock.text.trim();
+  if (text.startsWith("```")) {
+    text = text.replace(/^```[a-z]*\n?/, "").replace(/\n?```$/, "").trim();
+  }
+
+  console.log("Claude raw response:", text.substring(0, 200));
+
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch (e) {
+    throw new Error(`Claude returned invalid JSON: ${text.substring(0, 100)}`);
+  }
+
+  // Coerce total/subtotal/tax to numbers if they came as strings
+  if (raw && typeof raw === "object") {
+    const r = raw as Record<string, unknown>;
+    if (typeof r.total === "string") r.total = parseFloat(r.total) || 0;
+    if (typeof r.subtotal === "string") r.subtotal = parseFloat(r.subtotal) || 0;
+    if (typeof r.tax === "string") r.tax = parseFloat(r.tax) || 0;
+    if (!r.confidence) r.confidence = "medium";
+    if (!r.description) r.description = "";
+    if (!r.currency) r.currency = "USD";
+    if (!r.line_items) r.line_items = [];
+  }
+
   return ReceiptExtractionSchema.parse(raw);
 }
