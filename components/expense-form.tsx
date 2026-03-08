@@ -8,7 +8,6 @@ import type { Expense, ReceiptExtraction } from "@/lib/types";
 
 interface ExpenseFormProps {
   initialData?: Partial<Expense>;
-  initialEntity?: string;
   extraction?: ReceiptExtraction;
   imagePreview?: string;
   onSave: (data: Partial<Expense>) => void;
@@ -18,7 +17,6 @@ interface ExpenseFormProps {
 
 export function ExpenseForm({
   initialData = {},
-  initialEntity,
   extraction,
   imagePreview,
   onSave,
@@ -43,7 +41,7 @@ export function ExpenseForm({
     String(initialData.total ?? extraction?.total ?? 0)
   );
   const [category, setCategory] = useState(initialData.category ?? "");
-  const [entity, setEntity] = useState(initialData.entity ?? initialEntity ?? "");
+  const [entity, setEntity] = useState("");
   const [paymentMethod, setPaymentMethod] = useState(
     initialData.paymentMethod ?? extraction?.payment_method ?? ""
   );

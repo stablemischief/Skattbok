@@ -129,7 +129,6 @@ export default function ReviewPage() {
           initialData={{
             category: reviewData.rune,
           }}
-          initialEntity={reviewData.clan}
           onSave={(data) => handleSave(data)}
           saving={saving}
         />
