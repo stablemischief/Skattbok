@@ -144,6 +144,7 @@ export default function ExpenseDetailPage() {
 
         <ExpenseForm
           initialData={expense}
+          initialEntity={entity}
           imagePreview={expense.imageUrl || undefined}
           onSave={handleSave}
           onDelete={() => setDeleteModal(true)}

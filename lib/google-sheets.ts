@@ -15,6 +15,7 @@ function expenseToRow(expense: Expense): string[] {
     expense.category,
     String(expense.amount),
     String(expense.tax),
+    String(expense.tip),
     String(expense.total),
     expense.paymentMethod,
     expense.cardNickname,
@@ -25,6 +26,9 @@ function expenseToRow(expense: Expense): string[] {
 }
 
 function rowToExpense(row: string[]): Expense {
+  // Handle both old 13-column rows (no tip) and new 14-column rows
+  const hasTip = row.length >= 14;
+  const offset = hasTip ? 1 : 0;
   return {
     id: row[0] ?? "",
     date: row[1] ?? "",
@@ -33,12 +37,13 @@ function rowToExpense(row: string[]): Expense {
     category: row[4] ?? "",
     amount: parseFloat(row[5]) || 0,
     tax: parseFloat(row[6]) || 0,
-    total: parseFloat(row[7]) || 0,
-    paymentMethod: row[8] ?? "",
-    cardNickname: row[9] ?? "",
-    notes: row[10] ?? "",
-    imageUrl: row[11] ?? "",
-    createdAt: row[12] ?? "",
+    tip: hasTip ? parseFloat(row[7]) || 0 : 0,
+    total: parseFloat(row[7 + offset]) || 0,
+    paymentMethod: row[8 + offset] ?? "",
+    cardNickname: row[9 + offset] ?? "",
+    notes: row[10 + offset] ?? "",
+    imageUrl: row[11 + offset] ?? "",
+    createdAt: row[12 + offset] ?? "",
   };
 }
 
@@ -83,10 +88,27 @@ export async function getOrCreateSpreadsheet(
   const spreadsheetId = createResult.data.spreadsheetId;
   if (!spreadsheetId) throw new Error(`Google Sheets: created spreadsheet "${title}" but got no ID`);
 
+  // Move spreadsheet into entity folder (non-fatal — spreadsheet is usable at root)
+  try {
+    const { getOrCreateFolderPath } = await import("./google-drive");
+    const folderId = await getOrCreateFolderPath(
+      ["Expense-App", entityName],
+      token
+    );
+    await drive.files.update({
+      fileId: spreadsheetId,
+      addParents: folderId,
+      removeParents: "root",
+      fields: "id, parents",
+    });
+  } catch (err) {
+    console.warn(`Failed to move spreadsheet "${title}" into folder:`, err);
+  }
+
   // Add header row
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: "Expenses!A1:M1",
+    range: "Expenses!A1:N1",
     valueInputOption: "RAW",
     requestBody: {
       values: [GOOGLE_SHEETS_HEADERS as unknown as string[]],
@@ -104,7 +126,7 @@ export async function appendExpenseRow(
   const sheets = getGoogleSheetsClient(token);
   await sheets.spreadsheets.values.append({
     spreadsheetId,
-    range: "Expenses!A:M",
+    range: "Expenses!A:N",
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: [expenseToRow(expense)],
@@ -119,7 +141,7 @@ export async function getExpenses(
   const sheets = getGoogleSheetsClient(token);
   const result = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: "Expenses!A2:M",
+    range: "Expenses!A2:N",
   });
 
   const rows = result.data.values;
@@ -139,7 +161,7 @@ export async function updateExpenseRow(
   const sheetRow = rowIndex + 2;
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `Expenses!A${sheetRow}:M${sheetRow}`,
+    range: `Expenses!A${sheetRow}:N${sheetRow}`,
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: [expenseToRow(expense)],

@@ -9,12 +9,13 @@ Return a single JSON object with these fields:
 - currency: "USD"
 - subtotal: subtotal dollar amount as a number (e.g. 7.70)
 - tax: tax dollar amount as a number (e.g. 0.75)
+- tip: tip or gratuity amount as a number (e.g. 3.00). May be handwritten. Use 0 if no tip visible.
 - total: grand total dollar amount as a number (e.g. 8.45)
 - line_items: array of objects with "description" (string) and "amount" (number)
 - description: brief one-line summary of what was purchased
 - payment_method: payment method if visible (e.g. "Amex ****1001"), or ""
 - confidence: "high", "medium", or "low"
-- notes: other info like server name, check number, tip, etc.
+- notes: other info like server name, check number, table number, etc.
 
 CRITICAL: Extract ACTUAL dollar amounts from the receipt. Never use 0 as a placeholder.
 Return ONLY the JSON object, no markdown, no explanation.`;
@@ -71,6 +72,7 @@ export async function extractReceiptData(
     currency: String(raw.currency || "USD"),
     subtotal: toNum(raw.subtotal),
     tax: toNum(raw.tax),
+    tip: toNum(raw.tip),
     total: toNum(raw.total),
     line_items: lineItems,
     description: String(raw.description || raw.vendor || ""),

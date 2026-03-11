@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     );
 
     const arrayBuffer = await file.arrayBuffer();
-    let imageBuffer = Buffer.from(arrayBuffer);
+    const imageBuffer = Buffer.from(arrayBuffer);
 
     if (!process.env.GEMINI_API_KEY) {
       console.error("Receipt extraction: GEMINI_API_KEY is not set");

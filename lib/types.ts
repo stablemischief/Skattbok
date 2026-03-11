@@ -10,7 +10,7 @@ export const LineItemSchema = z.object({
 
 export type LineItem = z.infer<typeof LineItemSchema>;
 
-// --- Receipt Extraction (Claude Vision response) ---
+// --- Receipt Extraction (AI vision response) ---
 
 export const ReceiptExtractionSchema = z.object({
   vendor: z.string(),
@@ -18,6 +18,7 @@ export const ReceiptExtractionSchema = z.object({
   currency: z.string().default("USD"),
   subtotal: z.number().optional(),
   tax: z.number().optional(),
+  tip: z.number().optional(),
   total: z.number(),
   line_items: z.array(LineItemSchema).default([]),
   description: z.string().default(""),
@@ -38,6 +39,7 @@ export const ExpenseSchema = z.object({
   category: z.string(),
   amount: z.number(),
   tax: z.number(),
+  tip: z.number(),
   total: z.number(),
   paymentMethod: z.string(),
   cardNickname: z.string(),

@@ -48,6 +48,7 @@ export const GOOGLE_SHEETS_HEADERS = [
   "Category",
   "Amount",
   "Tax",
+  "Tip",
   "Total",
   "Payment Method",
   "Card Nickname",
