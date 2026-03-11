@@ -10,7 +10,7 @@ export const LineItemSchema = z.object({
 
 export type LineItem = z.infer<typeof LineItemSchema>;
 
-// --- Receipt Extraction (Claude Vision response) ---
+// --- Receipt Extraction (AI vision response) ---
 
 export const ReceiptExtractionSchema = z.object({
   vendor: z.string(),

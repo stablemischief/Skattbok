@@ -15,7 +15,7 @@ Return a single JSON object with these fields:
 - description: brief one-line summary of what was purchased
 - payment_method: payment method if visible (e.g. "Amex ****1001"), or ""
 - confidence: "high", "medium", or "low"
-- notes: other info like server name, check number, tip, etc.
+- notes: other info like server name, check number, table number, etc.
 
 CRITICAL: Extract ACTUAL dollar amounts from the receipt. Never use 0 as a placeholder.
 Return ONLY the JSON object, no markdown, no explanation.`;

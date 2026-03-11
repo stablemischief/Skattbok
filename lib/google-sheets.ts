@@ -88,18 +88,22 @@ export async function getOrCreateSpreadsheet(
   const spreadsheetId = createResult.data.spreadsheetId;
   if (!spreadsheetId) throw new Error(`Google Sheets: created spreadsheet "${title}" but got no ID`);
 
-  // Move spreadsheet into entity folder
-  const { getOrCreateFolderPath } = await import("./google-drive");
-  const folderId = await getOrCreateFolderPath(
-    ["Expense-App", entityName],
-    token
-  );
-  await drive.files.update({
-    fileId: spreadsheetId,
-    addParents: folderId,
-    removeParents: "root",
-    fields: "id, parents",
-  });
+  // Move spreadsheet into entity folder (non-fatal — spreadsheet is usable at root)
+  try {
+    const { getOrCreateFolderPath } = await import("./google-drive");
+    const folderId = await getOrCreateFolderPath(
+      ["Expense-App", entityName],
+      token
+    );
+    await drive.files.update({
+      fileId: spreadsheetId,
+      addParents: folderId,
+      removeParents: "root",
+      fields: "id, parents",
+    });
+  } catch (err) {
+    console.warn(`Failed to move spreadsheet "${title}" into folder:`, err);
+  }
 
   // Add header row
   await sheets.spreadsheets.values.update({
