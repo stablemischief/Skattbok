@@ -131,6 +131,7 @@ export async function POST(request: NextRequest) {
       category: expenseInput.category || "",
       amount: expenseInput.amount || 0,
       tax: expenseInput.tax || 0,
+      tip: expenseInput.tip || 0,
       total: expenseInput.total || 0,
       paymentMethod: expenseInput.paymentMethod || "",
       cardNickname: expenseInput.cardNickname || "",
